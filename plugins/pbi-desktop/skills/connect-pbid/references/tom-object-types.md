@@ -225,7 +225,7 @@ $model.Tables["Sales"].Columns.Add($col)
 ```powershell
 $cc = New-Object Microsoft.AnalysisServices.Tabular.CalculatedColumn
 $cc.Name = "Full Name"
-$cc.Expression = "[FirstName] & "" "" & [LastName]"
+$cc.Expression = "'Customers'[FirstName] & "" "" & 'Customers'[LastName]"
 $cc.DataType = [Microsoft.AnalysisServices.Tabular.DataType]::String
 $model.Tables["Customers"].Columns.Add($cc)
 ```
@@ -290,7 +290,7 @@ $model.Tables["Sales"].Columns.Remove($col)
 ```powershell
 $m = New-Object Microsoft.AnalysisServices.Tabular.Measure
 $m.Name = "Total Revenue"
-$m.Expression = "SUM(Sales[Amount])"
+$m.Expression = "SUM('Sales'[Amount])"
 $m.FormatString = "`$#,0.00"
 $m.DisplayFolder = "Key Metrics"
 $m.Description = "Sum of all sales amounts"
@@ -325,13 +325,13 @@ $m.KPI = $kpi
 ```powershell
 $m = New-Object Microsoft.AnalysisServices.Tabular.Measure
 $m.Name = "Total Sales"
-$m.Expression = "SUM(Sales[Amount])"
+$m.Expression = "SUM('Sales'[Amount])"
 $m.FormatString = "`$#,0"
 $model.Tables["Sales"].Measures.Add($m)
 
 # DetailRowsDefinition defines what shows when user drills through
 $drd = New-Object Microsoft.AnalysisServices.Tabular.DetailRowsDefinition
-$drd.Expression = "SELECTCOLUMNS(Sales, ""Product"", Sales[Product], ""Amount"", Sales[Amount], ""Date"", Sales[OrderDate])"
+$drd.Expression = "SELECTCOLUMNS('Sales', ""Product"", 'Sales'[Product], ""Amount"", 'Sales'[Amount], ""Date"", 'Sales'[OrderDate])"
 $m.DetailRowsDefinition = $drd
 ```
 
@@ -342,11 +342,11 @@ $m.DetailRowsDefinition = $drd
 # Requires compatibility level 1470+
 $m = New-Object Microsoft.AnalysisServices.Tabular.Measure
 $m.Name = "Dynamic Metric"
-$m.Expression = "IF(SELECTEDVALUE(Metric[Type]) = ""Pct"", [PctValue], [AbsValue])"
+$m.Expression = "IF(SELECTEDVALUE('Metric'[Type]) = ""Pct"", [PctValue], [AbsValue])"
 $model.Tables["Metrics"].Measures.Add($m)
 
 $fsd = New-Object Microsoft.AnalysisServices.Tabular.FormatStringDefinition
-$fsd.Expression = 'IF(SELECTEDVALUE(Metric[Type]) = "Pct", "0.0%", "#,0")'
+$fsd.Expression = 'IF(SELECTEDVALUE(''Metric''[Type]) = "Pct", "0.0%", "#,0")'
 $m.FormatStringDefinition = $fsd
 ```
 
@@ -372,7 +372,7 @@ foreach ($t in $model.Tables) {
 ### Update
 
 ```powershell
-$m.Expression = "CALCULATE(SUM(Sales[Amount]), Sales[Status] = ""Active"")"
+$m.Expression = "CALCULATE(SUM('Sales'[Amount]), 'Sales'[Status] = ""Active"")"
 $m.FormatString = "#,0"
 $m.DisplayFolder = "Revenue"
 $m.Description = "Active sales revenue"
@@ -963,7 +963,7 @@ For dynamic format strings that change based on context (e.g., showing % or $ de
 
 ```powershell
 $fsd = New-Object Microsoft.AnalysisServices.Tabular.FormatStringDefinition
-$fsd.Expression = 'IF(SELECTEDVALUE(Metric[Type]) = "Pct", "0.0%", "$#,0")'
+$fsd.Expression = 'IF(SELECTEDVALUE(''Metric''[Type]) = "Pct", "0.0%", "$#,0")'
 $m.FormatStringDefinition = $fsd
 ```
 

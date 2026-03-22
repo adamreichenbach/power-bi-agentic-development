@@ -42,6 +42,9 @@ Activate automatically when tasks involve:
   powershell -Command '$pkgDir = "$env:TEMP\tom_nuget"'
   ```
   For complex scripts, write to a `.ps1` file and execute with `-File` instead of `-Command` to avoid escaping issues entirely.
+- **Prefer inline PowerShell** over writing `.ps1` files. Only create script files for repeated operations. For one-off queries or modifications, use `powershell -ExecutionPolicy Bypass -Command '...'` directly.
+- **Always use `-ExecutionPolicy Bypass`** when running PowerShell commands or scripts. Windows blocks unsigned scripts by default.
+- **Script file location** -- if writing a `.ps1` file, write it to `./` (the current working directory), not `/tmp/` or other Unix paths. Execute with `powershell -ExecutionPolicy Bypass -File ./script.ps1`.
 - Do not modify model metadata without explicit user direction
 - Always call `$model.SaveChanges()` to persist modifications; without it, changes are discarded
 - For macOS users running PBI Desktop in Parallels, see [parallels-macos.md](./references/parallels-macos.md)
@@ -227,10 +230,10 @@ $reader.Close()
 
 ### DAX Rules
 
-- **Always fully qualify column references** with single-quoted table names: `'Sales'[Amount]`, not `[Amount]`. Unqualified columns cause ambiguity errors.
-- Table names with spaces or special characters must be single-quoted: `'D&D 5E Monsters'[CR]`
+- **Always fully qualify column references** with single-quoted table names: `'Sales'[Amount]`, not `[Amount]`. This applies everywhere -- measures, calculated columns, queries. Unqualified columns cause ambiguity errors.
+- Table names are **always** single-quoted in DAX: `'Sales'[Amount]`, `'D&D 5E Monsters'[CR]`. Even simple names like `Sales` should be quoted as `'Sales'` for consistency.
+- **Measure references are the only exception** -- they are always unqualified: `[Total Revenue]`
 - String literals in DAX use double quotes, escaped as `""` inside PowerShell here-strings
-- Measure references are unqualified: `[Total Revenue]`
 
 ### Query Patterns
 
