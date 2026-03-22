@@ -68,6 +68,6 @@ echo "Win path: $WIN_PATH"
 echo "Args: $EXTRA_ARGS"
 echo ""
 
-prlctl exec "$VM_NAME" cmd.exe /c "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"$WIN_PATH\" $EXTRA_ARGS"
+prlctl exec "$VM_NAME" cmd.exe /c "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"$WIN_PATH\" ${EXTRA_ARGS:+\"$EXTRA_ARGS\"}"
 
 #endregion
