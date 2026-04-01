@@ -6,7 +6,7 @@ PostToolUse hooks that validate PBIR and TMDL files after Write, Edit, and Bash 
 
 | Hook | Trigger | Scope |
 |---|---|---|
-| `validate-pbir.sh` | Write, Edit, Bash | .json/.pbir files in .Report/, .SemanticModel/, .Dataset/ |
+| `validate-pbir.sh` | Write, Edit, Bash | .json/.pbir files in .Report/ |
 | `validate-report-binding.sh` | Write, Edit, Bash | definition.pbir binding validation (byPath/byConnection) |
 | `validate-tmdl.sh` | Write, Edit, Bash | .tmdl files in .SemanticModel/ or .Dataset/ |
 
@@ -58,6 +58,18 @@ Derived from Microsoft's published JSON schemas at [github.com/microsoft/json-sc
 4. Update the table above.
 
 5. Test: `echo '{"tool_name":"Write","tool_input":{"file_path":"<path>"}}' | bash plugins/pbip/hooks/validate-pbir.sh`
+
+## "if" filter syntax in hooks.json
+
+Edit/Write `"if"` uses **gitignore path patterns** (recursive `**`, single-level `*`):
+- `Edit(**.Report/**)` -- any file inside any .Report/ at any depth
+- `Write(**/definition.pbir)` -- definition.pbir at any depth
+
+Bash `"if"` uses **glob text matching** against the command string (not path-aware):
+- `Bash(*.Report/*)` -- any command text containing `.Report/`
+- `Bash(*.tmdl*)` -- any command text containing `.tmdl`
+
+Pipes not supported in `"if"`; use separate Edit and Write matchers instead of `Write|Edit`.
 
 ## Constraints
 

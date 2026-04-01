@@ -9,8 +9,6 @@
 #   4. $schema URL format
 #   5. Visual/page name format (word chars and hyphens only)
 #
-# Also validates .json/.pbir files in .SemanticModel/ and .Dataset/ for JSON syntax.
-#
 # Checks can be toggled via config.yaml in the same directory as this script.
 #
 # Exit codes:
@@ -54,12 +52,8 @@ validate_file() {
         *) return 0 ;;
     esac
 
-    # Must be inside a PBIP project directory
-    if [[ ! "$FILE_PATH" =~ \.Report/ ]] && \
-       [[ ! "$FILE_PATH" =~ \.SemanticModel/ ]] && \
-       [[ ! "$FILE_PATH" =~ \.Dataset/ ]]; then
-        return 0
-    fi
+    # Must be inside a .Report/ directory
+    [[ ! "$FILE_PATH" =~ \.Report/ ]] && return 0
 
     # File must exist
     [[ -f "$FILE_PATH" ]] || return 0
