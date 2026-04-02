@@ -750,15 +750,17 @@ $model.DataSources.Remove($model.DataSources["Legacy SQL"])
 ```
 
 
-## Annotations (Custom Metadata)
+## Annotations, Extended Properties, and Field Parameters
+
+Basic CRUD for annotations is shown here. For comprehensive coverage including standard PBI annotations, Tabular Editor table groups, auto date/time control, field parameter creation, query groups, and custom tooling annotations, see **`references/annotations.md`**.
 
 ### Create
 
 ```powershell
 $ann = New-Object Microsoft.AnalysisServices.Tabular.Annotation
-$ann.Name = "PBI_Description"
-$ann.Value = "This measure tracks quarterly revenue"
-$model.Tables["Sales"].Measures["Total Revenue"].Annotations.Add($ann)
+$ann.Name = "TabularEditor_TableGroup"
+$ann.Value = "02. Fact Tables"
+$model.Tables["Sales"].Annotations.Add($ann)
 ```
 
 ### Read
@@ -772,13 +774,13 @@ foreach ($ann in $model.Tables["Sales"].Annotations) {
 ### Update
 
 ```powershell
-$model.Tables["Sales"].Annotations["PBI_Description"].Value = "Updated description"
+$model.Tables["Sales"].Annotations["TabularEditor_TableGroup"].Value = "01. Dimension Tables"
 ```
 
 ### Delete
 
 ```powershell
-$ann = $model.Tables["Sales"].Annotations["PBI_Description"]
+$ann = $model.Tables["Sales"].Annotations["TabularEditor_TableGroup"]
 $model.Tables["Sales"].Annotations.Remove($ann)
 ```
 

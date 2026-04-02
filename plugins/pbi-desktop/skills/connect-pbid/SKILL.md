@@ -1,10 +1,12 @@
 ---
 name: connect-pbid
-version: 0.8.5
-description: This skill should be used when the user asks to "connect to Power BI Desktop", "query PBI Desktop with DAX", "modify PBI Desktop model", "find the Analysis Services port", "use TOM with Power BI Desktop", "add a measure to PBI", "create a relationship", "find the file path of my Power BI file", "capture visual queries", "intercept DAX queries", "add a DAX UDF", or mentions connecting to the local Analysis Services instance. Provides TOM and ADOMD.NET guidance via PowerShell for model enumeration, DAX queries, metadata modification, and query tracing.
+version: 0.9.0
+description: This skill should be used when the user asks to "connect to Power BI Desktop", "query PBI Desktop with DAX", "modify PBI Desktop model", "find the Analysis Services port", "use TOM with Power BI Desktop", "add a measure to PBI", "create a relationship", "find the file path of my Power BI file", "capture visual queries", "intercept DAX queries", "add a DAX UDF", "create a field parameter", "add annotations", "set table groups", "create a calendar", "add calendar column groups", "validate DAX", "disable auto date/time", or mentions connecting to the local Analysis Services instance. Provides TOM and ADOMD.NET guidance via PowerShell for model enumeration, DAX queries, metadata modification, annotations, calendar definitions, field parameters, and query tracing.
 ---
 
 # Connect to Power BI Desktop (Local Analysis Services)
+
+> **CRITICAL:** Record mistakes, surprises, and model-specific nuances encountered while using this skill in `.claude/rules/connect-pbid.md`. This file must begin with "Learnings from Claude about connecting to semantic models via the connect-pbid skill". Write only active reference notes (e.g. "QueryGroup property returns an object; access .Folder for the name string"); do not log a changelog or history of events. Omit anything already documented in the skill or its references. Keep the file under 1500 characters at all times; prune stale entries when adding new ones. Do not over-attend to this file; update it only when something genuinely unexpected is discovered.
 
 > **Note:** No MCP server required; do not use this skill with MCP servers or CLI tools. Use this skill to execute PowerShell commands directly via Bash to connect to Power BI Desktop's local Analysis Services instance.
 
@@ -331,19 +333,74 @@ $model.SaveChanges()
 For complete TOM object type tables, PowerShell reflection patterns for discovering properties and enum values, and reading/setting property examples, see **`references/tom-object-types.md`**.
 
 
-## 7. Validation and Further Documentation
+## 7. Validating DAX Expressions
 
-### Validate Before Saving
+Before saving measure/column expressions, validate them by test-executing against the live model. This catches syntax errors, missing column references, and circular dependencies without persisting bad metadata.
 
 ```powershell
-# Check for validation errors
-$results = [Microsoft.AnalysisServices.Tabular.TomValidation]::Validate($model)
-foreach ($err in $results) {
-    Write-Output "$($err.Severity): $($err.Message)"
+# Validate a DAX expression before adding it as a measure
+$testExpr = "SUM('Sales'[Amount]) / COUNTROWS('Sales')"
+$cmd = $conn.CreateCommand()
+$cmd.CommandText = "EVALUATE ROW(`"@Test`", $testExpr)"
+try {
+    $reader = $cmd.ExecuteReader()
+    $reader.Close()
+    Write-Output "VALID"
+} catch {
+    Write-Output "INVALID: $($_.Exception.Message)"
 }
 ```
 
-If `TomValidation` is not available in the loaded version, validate by inspecting objects manually:
+For calculated table expressions, wrap in `COUNTROWS`:
+
+```powershell
+$tableExpr = "CALENDAR(DATE(2020,1,1), DATE(2030,12,31))"
+$cmd.CommandText = "EVALUATE ROW(`"@Count`", COUNTROWS($tableExpr))"
+```
+
+For filter expressions (RLS), test with `CALCULATETABLE`:
+
+```powershell
+$filterExpr = "'Sales'[Region] = `"West`""
+$cmd.CommandText = "EVALUATE CALCULATETABLE(ROW(`"@OK`", 1), $filterExpr)"
+```
+
+
+## 8. Transactions and Rollback
+
+`SaveChanges()` applies all pending modifications in a single implicit transaction. If any object fails validation, the entire batch rolls back automatically.
+
+For multi-step workflows where inspection or rollback is needed before committing:
+
+```powershell
+try {
+    # Make changes (not yet persisted)
+    $model.Tables["Sales"].Measures["Revenue"].Name = "Total Revenue"
+    $model.Tables["Sales"].Measures["Cost"].Name = "Total Cost"
+
+    # Inspect before committing (changes are local to this connection)
+    foreach ($m in $model.Tables["Sales"].Measures) {
+        Write-Output "  [$($m.Name)]"
+    }
+
+    # Commit all changes atomically
+    $model.SaveChanges()
+    Write-Output "Committed"
+} catch {
+    # Discard all uncommitted changes
+    $model.UndoLocalChanges()
+    Write-Output "Rolled back: $($_.Exception.Message)"
+}
+```
+
+`UndoLocalChanges()` discards all modifications made since the last `SaveChanges()`. This is the rollback mechanism for PBI Desktop; there is no explicit begin/commit transaction API on the local Analysis Services instance.
+
+
+## 9. Model Validation
+
+### Validate Before Saving
+
+The TOM API does not expose a public `Validate()` method. Validation happens implicitly during `SaveChanges()` (which rolls back the entire batch on failure). For pre-save validation, inspect objects manually:
 
 ```powershell
 # Check measures have valid expressions (non-empty)
@@ -371,7 +428,7 @@ foreach ($m in ($model.Tables | ForEach-Object { $_.Measures })) {
 }
 ```
 
-## 8. Finding the File Path and Editing Metadata Files
+## 10. Finding the File Path and Editing Metadata Files
 
 ### Find the Open File Path
 
@@ -468,6 +525,10 @@ To retrieve current TOM/ADOMD.NET reference docs, use `microsoft_docs_search` + 
 **Skill references:**
 
 - [TOM Object Types CRUD](./references/tom-object-types.md) - Full CRUD examples for every object type including UDFs, Direct Lake, KPI note
+- [Annotations and Extended Properties](./references/annotations.md) - Standard PBI annotations, Tabular Editor table groups, auto date/time, field parameters, query groups, custom annotations
+- [Calendar Column Groups](./references/calendar-column-groups.md) - Gregorian, fiscal, and ISO week-based calendar definitions via TOM; time units, primary/associated columns
+- [DAX Expression Locations](./references/dax-expressions.md) - Where DAX appears in a model: measures, calculated columns/tables, calc items, format strings, detail rows, RLS, UDFs
+- [DAX Pitfalls](./references/dax-pitfalls.md) - Deprecated/not-recommended functions, non-existent functions agents hallucinate from SQL/Python/M, common syntax mistakes, BLANK vs NULL
 - [Query Listener](./references/query-listener.md) - Capture live visual DAX queries via DMV polling; interpret query structure, timings, filter patterns
 - [Export Model](./references/export-model.md) - Export to BIM/TMDL via Tabular Editor CLI, fab CLI, or TOM serializer
 - [VertiPaq Statistics](./references/vertipaq-stats.md) - Column cardinality, dictionary/data size, memory by table, server timings via DMVs
@@ -485,6 +546,7 @@ To retrieve current TOM/ADOMD.NET reference docs, use `microsoft_docs_search` + 
 - `query-dax.ps1` - Execute DAX queries via ADOMD.NET with formatted output
 - `refresh-table.ps1` - Refresh a table or entire model via TMSL with configurable refresh type
 - `modify-tom-objects.ps1` - Create table, rename measures, set folders/formats, hide columns, create relationship (with undo)
+- `create-field-parameter.ps1` - Create a field parameter table from a list of measures with all required metadata
 - `connect-from-mac.sh` - macOS wrapper that runs PowerShell scripts in a Parallels VM via `prlctl exec`
 
 **External references:**
