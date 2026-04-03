@@ -1,0 +1,186 @@
+# Power Query Best Practices for Semantic Models
+
+Practical guidance for writing performant, maintainable M expressions in semantic model partitions.
+
+## Query Folding
+
+Query folding translates M steps into native data source queries (SQL, OData, etc.). When folding works, the data source does the heavy lifting. When it breaks, the mashup engine pulls all data into memory and processes it locally.
+
+### Why It Matters
+
+- A folded query against a 10M row table sends `SELECT TOP 1000 ... WHERE ...` to SQL Server; fast
+- A non-folded query pulls all 10M rows into the mashup engine, then filters locally; slow and memory-heavy
+- For large tables, broken folding often causes refresh timeouts or out-of-memory errors
+
+### Steps That Fold (SQL Sources)
+
+| M Function | SQL Equivalent |
+|------------|---------------|
+| `Table.SelectColumns` | `SELECT col1, col2` |
+| `Table.RemoveColumns` | `SELECT` (excluding columns) |
+| `Table.SelectRows` | `WHERE` |
+| `Table.Sort` | `ORDER BY` |
+| `Table.FirstN` | `TOP N` |
+| `Table.Group` | `GROUP BY` |
+| `Table.TransformColumnTypes` | `CAST` |
+| `Table.RenameColumns` | `AS` alias |
+| `Table.ExpandTableColumn` | `JOIN` |
+| `Table.NestedJoin` | `JOIN` |
+| `Table.Distinct` | `DISTINCT` |
+| `Table.Skip` | `OFFSET` |
+
+### Steps That Break Folding
+
+Once folding breaks, all subsequent steps also run locally:
+
+- `Table.AddColumn` with custom M expressions (not translatable)
+- `Table.Buffer` (forces materialization)
+- `Table.Combine` across different data sources
+- Complex `each` expressions with M-only logic (`Text.Combine`, `List.Transform`, etc.)
+- `Table.TransformColumns` with custom functions
+- `Table.Pivot` / `Table.Unpivot` (depends on source)
+- Accessing columns from other queries (cross-query references)
+
+### Folding Strategy
+
+**Rule:** Do all foldable work first, then do non-foldable work.
+
+```
+let
+    Source = Sql.Database(SqlEndpoint, Database),
+    Data = Source{[Schema="dbo", Item="Orders"]}[Data],
+
+    -- FOLDABLE: These translate to SQL
+    #"Filtered Rows" = Table.SelectRows(Data, each [Year] >= 2023),
+    #"Selected Columns" = Table.SelectColumns(#"Filtered Rows",
+        {"OrderId", "Date", "Amount", "CustomerId", "Status"}),
+    #"Set Types" = Table.TransformColumnTypes(#"Selected Columns", {
+        {"Amount", Currency.Type}, {"Date", type date}}),
+
+    -- NON-FOLDABLE: These run in the mashup engine
+    #"Added Category" = Table.AddColumn(#"Set Types", "AmountBucket",
+        each if [Amount] > 10000 then "Large" else "Small", type text)
+in
+    #"Added Category"
+```
+
+### Verifying Folding
+
+In Power Query Online or Desktop, right-click a step and check "View Native Query". If greyed out, the step doesn't fold.
+
+Programmatically: execute the expression via the `executeQuery` API. If a query on a large table completes well within the 90-second timeout, folding is likely working. If it times out or is slow, folding may be broken.
+
+## Column Pruning
+
+Remove columns as early as possible. Every column not removed travels through every subsequent step.
+
+```
+-- Good: remove columns immediately after navigation
+Data = Source{[Schema="dbo", Item="Orders"]}[Data],
+#"Selected" = Table.SelectColumns(Data, {"OrderId", "Date", "Amount"}),
+...
+
+-- Bad: remove columns at the end after all transforms
+...
+#"Final" = Table.RemoveColumns(#"Transformed", {"Col1", "Col2", "Col3", ...})
+```
+
+Early column pruning folds to SQL `SELECT`, reducing data transfer from the source.
+
+## Row Filtering
+
+Filter rows early for the same reason. A `Table.SelectRows` immediately after navigation folds to `WHERE`:
+
+```
+Data = Source{[Schema="dbo", Item="Orders"]}[Data],
+#"Filtered" = Table.SelectRows(Data, each [IsActive] = true and [Year] >= 2023),
+```
+
+This is especially important for incremental refresh, where `RangeStart`/`RangeEnd` filters must fold to be effective.
+
+## Type Handling
+
+### Apply Types Early
+
+`Table.TransformColumnTypes` folds to `CAST` in SQL. Apply it right after column selection:
+
+```
+#"Selected" = Table.SelectColumns(Data, {"OrderId", "Date", "Amount"}),
+#"Typed" = Table.TransformColumnTypes(#"Selected", {
+    {"OrderId", Int64.Type},
+    {"Date", type date},
+    {"Amount", Currency.Type}
+}),
+```
+
+### Avoid Implicit Type Detection
+
+Never use `Table.TransformColumnTypes` with `Replacer.ReplaceValue` or locale-dependent conversions on large datasets. These don't fold and can introduce unexpected nulls.
+
+### Common Type Mappings
+
+| M Type | Use for |
+|--------|---------|
+| `Int64.Type` | Integer keys, counts |
+| `type text` | Strings |
+| `type date` | Date-only columns |
+| `type datetime` | DateTime columns |
+| `type datetimezone` | DateTime with timezone |
+| `Currency.Type` | Financial amounts (fixed decimal) |
+| `type logical` | Boolean flags |
+| `Percentage.Type` | Rates, percentages |
+
+## Anti-Patterns
+
+### Pulling Entire Tables Then Filtering
+
+```
+-- Anti-pattern: filter after all transforms
+Data = Source{[Schema="dbo", Item="BigTable"]}[Data],
+#"Added Column" = Table.AddColumn(Data, ...),  -- breaks folding
+#"Filtered" = Table.SelectRows(#"Added Column", each [Year] >= 2023)
+-- Filter runs locally on ALL rows
+```
+
+### Using Table.Buffer Unnecessarily
+
+`Table.Buffer` forces the entire table into memory. Only use when the same table is referenced multiple times and re-evaluation would be expensive.
+
+### Referencing Other Queries
+
+Cross-query references (accessing a column from a different query) break folding and can cause cascading performance issues.
+
+### Excessive Step Count
+
+Each step adds overhead. Combine related operations where natural; don't create a separate step for each individual column rename when `Table.RenameColumns` handles multiples:
+
+```
+-- Good: one step for all renames
+#"Renamed" = Table.RenameColumns(Data, {
+    {"OldName1", "NewName1"},
+    {"OldName2", "NewName2"}
+})
+
+-- Bad: separate step per rename
+#"Renamed1" = Table.RenameColumns(Data, {{"OldName1", "NewName1"}}),
+#"Renamed2" = Table.RenameColumns(#"Renamed1", {{"OldName2", "NewName2"}})
+```
+
+## Naming Conventions
+
+- Use descriptive step names: `#"Filtered Active Orders"` not `#"Custom1"`
+- Use `#"Quoted Identifiers"` for steps with spaces (standard Power Query convention)
+- Parameters: `PascalCase` without spaces (`SqlEndpoint`, `DatabaseName`)
+- Keep step names consistent with what the Power Query UI would generate
+
+## Error Handling
+
+For production partitions, avoid `try...otherwise` patterns that silently swallow errors. A failed refresh is better than silently loading wrong data.
+
+If error handling is necessary (e.g., optional columns), make it explicit and narrow:
+
+```
+#"Safe Amount" = Table.TransformColumns(Data, {
+    {"Amount", each try Number.FromText(_) otherwise null, type number}
+})
+```
