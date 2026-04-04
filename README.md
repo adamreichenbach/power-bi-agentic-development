@@ -14,9 +14,7 @@
 </p>
 
 > [!NOTE]
-> **These skills are under active development with a daily release cadence.** Breaking changes, new additions, and restructuring may occur frequently.
->
-> Please create an issue if you have any questions, issues, or just want help. I am currently on parental leave, but I will make time to help you, if you need it.
+> These skills are under active development with a daily release cadence and regular renaming or restructuring.
 
 ---
 
