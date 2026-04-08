@@ -109,7 +109,9 @@ daxlib add <package> --port <port> -v <version>    # Specific version
 daxlib add <package> --port <port> --fn "Name"     # Install single function only
 ```
 
-Automatically upgrades model CL to 1702 if below. Skips functions that already exist (by name). Each installed function gets `DAXLIB_PackageId` and `DAXLIB_PackageVersion` annotations.
+Skips functions that already exist (by name). Each installed function gets `DAXLIB_PackageId` and `DAXLIB_PackageVersion` annotations.
+
+> **CL upgrade warning:** DAX UDFs require compatibility level 1702+. If the model is below 1702, `daxlib add` will upgrade the CL automatically. This is **irreversible**; older tools that don't support CL 1702 won't open the model afterward. Always confirm with the user before running `daxlib add` on a model below CL 1702.
 
 
 ### Updating Packages

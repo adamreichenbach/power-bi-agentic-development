@@ -26,16 +26,7 @@ Activate only when the Tabular Editor CLI or a Power BI MCP server is unavailabl
 - The local Analysis Services instance only accepts connections from `localhost`
 - Multiple PBI Desktop files open means multiple `msmdsrv.exe` processes on different ports. Connect to each port, read `$server.Databases[0].Name`, and ask the user which model to work with if more than one is found
 - Always use a timeout of 60000ms or higher for PowerShell commands via Bash
-- **Shell escaping**: When calling PowerShell from Bash (e.g., on macOS or WSL), use **single quotes** for the outer `-Command` argument so Bash does not interpret `$env:TEMP`, `$server`, etc. as shell variables. Double quotes cause `$` variables to be eaten by Bash before PowerShell sees them:
-  ```bash
-  # Wrong -- Bash eats $env:TEMP, PowerShell gets empty string
-  powershell -Command "$pkgDir = $env:TEMP\tom_nuget"
-
-  # Correct -- single quotes pass $env:TEMP literally to PowerShell
-  powershell -Command '$pkgDir = "$env:TEMP\tom_nuget"'
-  ```
-  For complex scripts, write to a `.ps1` file and execute with `-File` instead of `-Command` to avoid escaping issues entirely.
-- **Prefer inline PowerShell** over writing `.ps1` files. Only create script files for repeated operations. For one-off queries or modifications, use `powershell -ExecutionPolicy Bypass -Command '...'` directly.
+- **Shell escaping**: Bash eats PowerShell `$` variables (`$env:TEMP`, `$server`, etc.) silently. Two options: (1) single-quote the `-Command` arg so Bash passes `$` literally to PowerShell; (2) write a `.ps1` file with a heredoc (single-quoted delimiter preserves `$`) and use `-File`. On macOS via Parallels, the `prlctl` -> `cmd.exe` -> `powershell.exe` chain adds extra escaping layers; `.ps1` files are more reliable for complex scripts but inline `-Command` with single quotes works for short commands.
 - **Always use `-ExecutionPolicy Bypass`** when running PowerShell commands or scripts. Windows blocks unsigned scripts by default.
 - **Script file location** -- persistent scripts should go in the agent harness's scripts directory for the project (`.claude/scripts/`, `.github/scripts/`, `.cursor/scripts/`, `.gemini/scripts/`, etc. depending on the harness). Ephemeral or throwaway scripts should go in a project `tmp/` directory (which should be `.gitignored`). Do not write scripts to `./` root or `/tmp/`.
 - Do not modify model metadata without explicit user direction
