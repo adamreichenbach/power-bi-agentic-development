@@ -1,6 +1,6 @@
 ---
 name: review-semantic-model
-version: 0.19.0
+version: 0.20.0
 description: Review, audit, and validate Power BI semantic models against quality, performance, and best practice standards. Automatically invoke when the user asks to "review a semantic model", "audit a semantic model", "check model quality", "optimize my model", "validate model design", "check AI readiness", "prepare model for Copilot", or mentions model validation or quality assessment.
 ---
 
@@ -81,9 +81,11 @@ Evaluate findings across categories, ordered by severity:
 
 **Design**
 - Star schema violations (direct fact-to-fact relationships, snowflake patterns)
-- Missing or misconfigured date table (no `isDateTable` mark)
+- Missing or misconfigured date table: must be marked (`dataCategory: Time` in TMDL, with a key Date column), have continuous daily dates (no gaps), span the full range of fact data, and relate to fact tables via a single-column relationship. Missing any of these causes time intelligence functions (DATEADD, SAMEPERIODLASTYEAR, TOTALYTD) to return BLANK
 - Excessive columns per table (>30 suggests denormalization issues)
 - Many-to-many relationships without bridging tables
+- Multiple fact tables relating to the same dimension via different keys without a shared conformed dimension (causes slicers on one fact to not filter the other)
+- Inactive relationships without corresponding USERELATIONSHIP in measures (orphaned relationships that suggest incomplete modeling)
 
 **Direct Lake (if applicable)**
 - Delta table health (parquet file count, V-Order, row group sizes)

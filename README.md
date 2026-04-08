@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.19.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-0.20.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/Power_BI-F2C811?logo=powerbi&logoColor=000" alt="Power BI">
   <img src="https://img.shields.io/badge/Microsoft_Fabric-008272" alt="Microsoft Fabric">
   <img src="https://img.shields.io/badge/Tabular_Editor-2E7D32" alt="Tabular Editor">
@@ -81,7 +81,9 @@ The repo contains skills, agents, and hooks.
 - **Agents** are autonomous subprocesses that handle complex, multi-step tasks independently; typically used for review and validation.
 - **Hooks** run automatically after tool use to validate files and catch errors early. They are deterministic; they fire when a specific pattern is matched, not by LLM judgment.
 
-Hook checks can be individually toggled via `plugins/pbip/hooks/config.yaml`. Set any check to `false` to disable it; for example, set `fab_exists: false` if you don't have the Fabric CLI installed.
+Hook checks can be individually toggled via config files. Set any check to `false` to disable it:
+- `plugins/pbip/hooks/config.yaml` -- PBIR, TMDL, and report binding validation
+- `plugins/pbi-desktop/hooks/config.yaml` -- DAX references, measure metadata, referential integrity, metadata cache
 
 ### Available plugins for Power BI and Fabric
 
@@ -106,6 +108,11 @@ Hook checks can be individually toggled via `plugins/pbip/hooks/config.yaml`. Se
 |------|------|-------------|
 | Skill | [`connect-pbid`](plugins/pbi-desktop/skills/connect-pbid/) | Explore, query, and modify a model in Power BI Desktop |
 | Agent | [`query-listener`](plugins/pbi-desktop/agents/query-listener.md) | Capture DAX queries from Power BI Desktop visuals in real time |
+| Hook | DAX reference validation | Validates table, column, and measure references against the connected model; suggests corrections |
+| Hook | Measure metadata enforcement | Blocks adding measures without DisplayFolder, Description, and FormatString |
+| Hook | Referential integrity check | Reports unmatched many-side keys after relationship or column changes |
+| Hook | Metadata cache refresh | Auto-snapshots model metadata on TOM connect or model modification |
+| Hook | Compatibility level check | Reports features available by upgrading; optional auto-upgrade |
 
 </details>
 
