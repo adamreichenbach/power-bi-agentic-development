@@ -209,7 +209,7 @@ Perform the following checks, categorized by severity:
 
 ## Related Skills
 
-- **[`dax`](../skills/dax/)** — For systematic DAX query performance optimization (trace diagnostics, pattern catalog DAX001–DL002). Use when audit findings reveal DAX anti-patterns or performance issues that need targeted optimization.
+- **[`dax`](../skills/dax/)** — DAX performance optimization
 - **[`review-semantic-model`](../skills/review-semantic-model/)** — Full model quality review
 - **[`standardize-naming-conventions`](../skills/standardize-naming-conventions/)** — Naming remediation
 

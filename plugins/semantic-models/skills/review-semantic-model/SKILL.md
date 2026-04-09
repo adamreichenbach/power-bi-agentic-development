@@ -118,7 +118,7 @@ Dispatch the `semantic-model-auditor` agent to perform the structural audit. The
 
 - The structural audit analyzes model metadata -- it does not execute DAX queries or check data quality
 - For DAX query performance testing, see `references/performance.md`
-- For systematic DAX optimization with trace diagnostics and a pattern catalog, use the [`dax` skill](../dax/)
+- For DAX optimization, use the [`dax` skill](../dax/)
 - For companion report review, use the `review-report` skill in the reports plugin
 
 ## References
@@ -129,7 +129,7 @@ Dispatch the `semantic-model-auditor` agent to perform the structural audit. The
 
 ## Related Skills
 
-- **[`dax`](../dax/)** -- DAX performance optimization: tiered framework, trace diagnostics, pattern catalog (DAX001–DL002)
+- **[`dax`](../dax/)** -- DAX performance optimization
 - **`review-report`** (reports plugin) -- Companion skill for report-level review
 - **`standardize-naming-conventions`** -- Naming audit and remediation
 - **`lineage-analysis`** -- Downstream report discovery
