@@ -33,24 +33,24 @@ Use to prioritize *where to start* within sections, not to skip them. Section 3 
 
 | Signal | Start With |
 |--------|------------|
-| `CallbackDataID` or `EncodeCallback` in xmSQL | DAX002, DAX007, DAX008, DAX018 (highest priority) |
-| `ADDCOLUMNS` or `SUMMARIZE` in measure expression | DAX002, DAX006 |
-| `SUMMARIZE` with complex or filtered table as first argument | DAX005 |
-| `SUMX(VALUES(col), CALCULATE(...))` pattern in measure | DAX006 |
-| Same measure evaluated multiple times | DAX003 |
-| Duplicate or redundant `CALCULATE` filter predicates | DAX004 |
-| `FILTER(Table, ...)` as `CALCULATE` argument, or `&&` joining predicates in single filter | DAX001 |
-| `ALL(table), VALUES(table[col])` in same `CALCULATE` | DAX012 |
-| Filter or `TREATAS` passed directly as `SUMMARIZECOLUMNS` argument (not wrapped in `CALCULATETABLE`) | DAX009 |
-| SE rows far exceed final result count | DAX010 |
-| `DISTINCTCOUNT` in measure expression | DAX011, DAX014 |
-| Conditional logic (`IF`, `IIF`) or `DIVIDE()` inside row iterator | DAX007, DAX018 |
-| `SWITCH` or `IF` as primary expression body in measure | DAX013 |
-| Multiple SE queries hitting same fact table | DAX019 (vertical fusion), DAX020 (horizontal), DAX017 (boolean multiplier) |
-| Near-identical SE queries on same fact table differing only by a column filter value or by per-measure `VAND` tuple predicates | DAX017 |
-| Bidirectional or M2M relationship causing unexpected SE join expansion, or existing `TREATAS`/`CROSSFILTER` in measure | DAX016 |
-| High-cardinality iterator (many distinct rows, low-cardinality attribute) | DAX015 |
-| `TREATAS` or `IN` re-filtering same fact with a computed key set; or large compound-tuple semi-join in xmSQL | DAX021 |
+| `CallbackDataID` or `EncodeCallback` in xmSQL | [DAX002](./dax-patterns.md#dax002-replace-addcolumnssummarize-with-summarizecolumns), [DAX007](./dax-patterns.md#dax007-replace-if-with-int-for-boolean-conversion), [DAX008](./dax-patterns.md#dax008-context-transition-in-iterator), [DAX018](./dax-patterns.md#dax018-replace-divide-with-division-operator-in-iterators) (highest priority) |
+| `ADDCOLUMNS` or `SUMMARIZE` in measure expression | [DAX002](./dax-patterns.md#dax002-replace-addcolumnssummarize-with-summarizecolumns), [DAX006](./dax-patterns.md#dax006-pre-materialize-context-transitions-with-summarizecolumns) |
+| `SUMMARIZE` with complex or filtered table as first argument | [DAX005](./dax-patterns.md#dax005-summarize-with-complex-table-expression) |
+| `SUMX(VALUES(col), CALCULATE(...))` pattern in measure | [DAX006](./dax-patterns.md#dax006-pre-materialize-context-transitions-with-summarizecolumns) |
+| Same measure evaluated multiple times | [DAX003](./dax-patterns.md#dax003-cache-repeated-and-context-independent-expressions-in-variables) |
+| Duplicate or redundant `CALCULATE` filter predicates | [DAX004](./dax-patterns.md#dax004-remove-duplicate-and-redundant-filters) |
+| `FILTER(Table, ...)` as `CALCULATE` argument, or `&&` joining predicates in single filter | [DAX001](./dax-patterns.md#dax001-use-simple-column-filter-predicates-as-calculate-arguments) |
+| `ALL(table), VALUES(table[col])` in same `CALCULATE` | [DAX012](./dax-patterns.md#dax012-use-allexcept-instead-of-all-and-values-restoration) |
+| Filter or `TREATAS` passed directly as `SUMMARIZECOLUMNS` argument (not wrapped in `CALCULATETABLE`) | [DAX009](./dax-patterns.md#dax009-wrap-summarizecolumns-filters-with-calculatetable) |
+| SE rows far exceed final result count | [DAX010](./dax-patterns.md#dax010-apply-filters-using-calculatetable-instead-of-filter) |
+| `DISTINCTCOUNT` in measure expression | [DAX011](./dax-patterns.md#dax011-distinct-count-alternatives), [DAX014](./dax-patterns.md#dax014-use-countrows-instead-of-distinctcount-on-key-columns) |
+| Conditional logic (`IF`, `IIF`) or `DIVIDE()` inside row iterator | [DAX007](./dax-patterns.md#dax007-replace-if-with-int-for-boolean-conversion), [DAX018](./dax-patterns.md#dax018-replace-divide-with-division-operator-in-iterators) |
+| `SWITCH` or `IF` as primary expression body in measure | [DAX013](./dax-patterns.md#dax013-switchif-branch-optimization-in-summarizecolumns) |
+| Multiple SE queries hitting same fact table | [DAX019](./dax-patterns.md#dax019-lift-time-intelligence-to-outer-calculate-for-vertical-fusion) (vertical fusion), [DAX020](./dax-patterns.md#dax020-unblock-horizontal-fusion-by-lifting-filters) (horizontal), [DAX017](./dax-patterns.md#dax017-apply-boolean-multiplier-to-unblock-fusion) (boolean multiplier) |
+| Near-identical SE queries on same fact table differing only by a column filter value or by per-measure `VAND` tuple predicates | [DAX017](./dax-patterns.md#dax017-apply-boolean-multiplier-to-unblock-fusion) |
+| Bidirectional or M2M relationship causing unexpected SE join expansion, or existing `TREATAS`/`CROSSFILTER` in measure | [DAX016](./dax-patterns.md#dax016-experiment-with-relationship-overrides-via-treatas-and-crossfilter) |
+| High-cardinality iterator (many distinct rows, low-cardinality attribute) | [DAX015](./dax-patterns.md#dax015-move-calculation-to-lower-granularity) |
+| `TREATAS` or `IN` re-filtering same fact with a computed key set; or large compound-tuple semi-join in xmSQL | [DAX021](./dax-patterns.md#dax021-pre-compute-and-join-instead-of-filter-round-trip) |
 
 > No signal matches? Read all of §3 — patterns DAX001–DAX021 cover the full range.
 
@@ -60,12 +60,12 @@ Only consult these sections if the corresponding signal is present. All require 
 
 | Signal | Escalate To |
 |--------|-------------|
-| `__ValueFilterDM` in generated query | §4 → QRY002 |
-| Groupby column is high-cardinality (e.g., `Calendar[Date]`) | §4 → QRY003 |
-| Tier 1 patterns exhausted; output change acceptable | §4 → QRY001–QRY004 |
-| Few SE queries, low parallelism, clean xmSQL, high SE duration | §5/§6 → data layout |
-| Many-to-many or bidirectional relationship overhead | §5 → MDL001 |
-| Direct Lake model + low parallelism or cold cache | §6 → DL001–DL002 |
+| `__ValueFilterDM` in generated query | §4 → [QRY002](./dax-patterns.md#qry002-eliminate-report-measure-filters-__valuefilterdm) |
+| Groupby column is high-cardinality (e.g., `Calendar[Date]`) | §4 → [QRY003](./dax-patterns.md#qry003-reduce-query-grain) |
+| Tier 1 patterns exhausted; output change acceptable | §4 → [QRY001](./dax-patterns.md#qry001-remove-unneeded-filters)–[QRY004](./dax-patterns.md#qry004-remove-blank-suppression-changes-result-shape) |
+| Few SE queries, low parallelism, clean xmSQL, high SE duration | §5/§6 → [data layout](./model-optimization.md#section-5-tier-3-model-optimization-patterns) |
+| Many-to-many or bidirectional relationship overhead | §5 → [MDL001](./model-optimization.md#mdl001-many-to-many-relationship-optimization) |
+| Direct Lake model + low parallelism or cold cache | §6 → [DL001](./model-optimization.md#dl001-v-ordering-for-optimal-vertipaq-compression)–[DL002](./model-optimization.md#dl002-segment-size-and-parallelism) |
 
 ---
 
